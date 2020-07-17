@@ -772,7 +772,8 @@ public final class HTTP: NSObject, URLSessionDelegate, JustAdaptor {
       }
     } else if let array = value as? [Any] {
       for value in array {
-        components += queryComponents("\(key)", value)
+        //components += queryComponents("\(key)", value)
+        components += queryComponents("\(key)[]", value) //VK: fix move.ru api
       }
     } else {
       components.append((
@@ -809,7 +810,7 @@ public final class HTTP: NSObject, URLSessionDelegate, JustAdaptor {
     -> URLSessionDataTask?
   {
     let task = session.dataTask(with: request)
-    taskConfigs[task.taskIdentifier] = configuration
+    taskConfigs[task.taskIdentifier] = configuration // crash
     return task
   }
 
@@ -1007,7 +1008,8 @@ public final class HTTP: NSObject, URLSessionDelegate, JustAdaptor {
     }
 
     if let task = makeTask(request, configuration: config) {
-      task.resume()
+      task.resume() //VK: crash?
+      requestResult.task = task //VK: add for call 'cancel'
     }
 
     if isSynchronous {
