@@ -1131,7 +1131,7 @@ extension HTTP: URLSessionTaskDelegate, URLSessionDataDelegate {
       result.encoding = self.defaults.encoding
       handler(result)
     }
-    lockQueue.sync(flags: [.barrier]) {
+    _ = lockQueue.sync(flags: [.barrier]) {
       taskConfigs.removeValue(forKey: task.taskIdentifier)
     }
   }
