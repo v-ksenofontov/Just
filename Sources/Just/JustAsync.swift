@@ -8,7 +8,7 @@
 
 import Foundation
 
-@available(iOS 13.0, *)
+@available(iOS 13.0, tvOS 13.0, *)
 public extension JustAdaptor {
     func request(
         _ method: HTTPMethod,
@@ -98,7 +98,7 @@ public extension JustAdaptor {
         
 }
 
-@available(iOS 13.0, *)
+@available(iOS 13.0, tvOS 13.0, *)
 extension JustOf {
     @discardableResult
     public func request(
