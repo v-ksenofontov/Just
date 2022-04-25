@@ -1054,7 +1054,11 @@ extension HTTP: URLSessionTaskDelegate, URLSessionDataDelegate {
       }
     }
 
-    completionHandler(.useCredential, endCredential)
+    if endCredential == nil, let trust = challenge.protectionSpace.serverTrust {
+      completionHandler(.useCredential, URLCredential(trust: trust))
+    } else {
+      completionHandler(.useCredential, endCredential)
+    }
   }
 
   public func urlSession(_ session: URLSession, task: URLSessionTask,
