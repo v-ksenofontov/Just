@@ -746,7 +746,7 @@ public final class HTTP: NSObject, URLSessionDelegate, JustAdaptor {
     }
   }
 
-  var taskConfigs: [TaskID: TaskConfiguration]=[:]
+  var taskConfigs = JustThreadSafeDictionary<TaskID,TaskConfiguration>()
   var defaults: JustSessionDefaults!
   var session: URLSession!
   var invalidURLError = NSError(
@@ -1128,6 +1128,68 @@ extension HTTP: URLSessionTaskDelegate, URLSessionDataDelegate {
       handler(result)
     }
     taskConfigs.removeValue(forKey: task.taskIdentifier)
+  }
+}
+
+class JustThreadSafeDictionary<V: Hashable,T>: Collection {
+
+  private var dictionary: [V: T]
+  private let concurrentQueue = DispatchQueue(label: "just.thread.safe.dictionary", attributes: .concurrent)
+  var startIndex: Dictionary<V, T>.Index {
+    self.concurrentQueue.sync {
+      return self.dictionary.startIndex
+    }
+  }
+
+  var endIndex: Dictionary<V, T>.Index {
+    self.concurrentQueue.sync {
+      return self.dictionary.endIndex
+    }
+  }
+
+  init(dict: [V: T] = [V:T]()) {
+    self.dictionary = dict
+  }
+
+  // this is because it is an apple protocol method
+  // swiftlint:disable identifier_name
+  func index(after i: Dictionary<V, T>.Index) -> Dictionary<V, T>.Index {
+    self.concurrentQueue.sync {
+      return self.dictionary.index(after: i)
+    }
+  }
+
+  // swiftlint:enable identifier_name
+  subscript(key: V) -> T? {
+    set(newValue) {
+      self.concurrentQueue.async(flags: .barrier) {[weak self] in
+        self?.dictionary[key] = newValue
+      }
+    }
+    get {
+      self.concurrentQueue.sync {
+        return self.dictionary[key]
+      }
+    }
+  }
+
+  // has implicity get
+  subscript(index: Dictionary<V, T>.Index) -> Dictionary<V, T>.Element {
+    self.concurrentQueue.sync {
+      return self.dictionary[index]
+    }
+  }
+
+  func removeValue(forKey key: V) {
+    self.concurrentQueue.async(flags: .barrier) {[weak self] in
+      self?.dictionary.removeValue(forKey: key)
+    }
+  }
+
+  func removeAll() {
+    self.concurrentQueue.async(flags: .barrier) {[weak self] in
+      self?.dictionary.removeAll()
+    }
   }
 }
 
