@@ -10,7 +10,7 @@ import XCTest
 import Just
 import _Concurrency
 
-@available(iOS 13.0, *)
+@available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
 class JustAsyncTests: XCTestCase {
 
     func testSendSimpleQueryStringWithGet() async throws {
@@ -29,6 +29,7 @@ class JustAsyncTests: XCTestCase {
      result GET https://fakeresponder.com/?sleep=2500 200
      Took 3 seconds
      */
+    @available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *)
     func testGetWithFakeresponder() async throws {
         // sleep time in milliseconds
         // https://fakeresponder.com/?sleep=500
@@ -55,6 +56,7 @@ class JustAsyncTests: XCTestCase {
      result <Empty>
      Took 0 seconds
      */
+    @available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *)
     func testCancelBeforeGetWithFakeresponder() async throws {
         // sleep time in milliseconds
         // https://fakeresponder.com/?sleep=500
@@ -86,6 +88,7 @@ class JustAsyncTests: XCTestCase {
      result <Empty>
      Took 1 seconds
      */
+    @available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *)
     func testCancelAfterGetWithFakeresponder() async throws {
         // sleep time in milliseconds
         // https://fakeresponder.com/?sleep=500

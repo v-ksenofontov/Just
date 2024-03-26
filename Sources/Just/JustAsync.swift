@@ -8,7 +8,7 @@
 
 import Foundation
 
-@available(iOS 13.0, *)
+@available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
 actor HTTPResultWrapper {
     var httpResult: HTTPResult?
     private(set) var isCancelled = false
@@ -26,7 +26,7 @@ actor HTTPResultWrapper {
     }
 }
 
-@available(iOS 13.0, *)
+@available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
 public extension JustAdaptor {
     func request(
         _ method: HTTPMethod,
@@ -78,7 +78,7 @@ public extension JustAdaptor {
     }
 }
 
-@available(iOS 13.0, *)
+@available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
 extension JustOf {
     @discardableResult
     public func request(

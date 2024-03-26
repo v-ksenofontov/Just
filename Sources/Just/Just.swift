@@ -747,8 +747,6 @@ public final class HTTP: NSObject, URLSessionDelegate, JustAdaptor {
   }
 
   var taskConfigs = JustThreadSafeDictionary<TaskID,TaskConfiguration>()
-  var lockQueue = DispatchQueue(label: "com.just.asyncoperation", attributes: .concurrent)
-  //var taskConfigs: [TaskID: TaskConfiguration]=[:] // need sync!
   var defaults: JustSessionDefaults!
   var session: URLSession!
   var invalidURLError = NSError(
@@ -812,9 +810,7 @@ public final class HTTP: NSObject, URLSessionDelegate, JustAdaptor {
     -> URLSessionDataTask?
   {
     let task = session.dataTask(with: request)
-    lockQueue.sync(flags: [.barrier]) {
-      taskConfigs[task.taskIdentifier] = configuration // crash without lock
-    }
+    taskConfigs[task.taskIdentifier] = configuration
     return task
   }
 
@@ -1056,8 +1052,8 @@ extension HTTP: URLSessionTaskDelegate, URLSessionDataDelegate {
     {
     var endCredential: URLCredential? = nil
 
-    if let taskConfig = lockQueue.sync(execute: { taskConfigs[task.taskIdentifier] }),
-      let credential = taskConfig.credential
+    if let taskConfig = taskConfigs[task.taskIdentifier],
+       let credential = taskConfig.credential
     {
       if !(challenge.previousFailureCount > 0) {
         endCredential = URLCredential(
@@ -1080,7 +1076,7 @@ extension HTTP: URLSessionTaskDelegate, URLSessionDataDelegate {
     newRequest request: URLRequest,
     completionHandler: @escaping (URLRequest?) -> Void)
   {
-    if let allowRedirects = lockQueue.sync(execute: { taskConfigs[task.taskIdentifier]?.redirects }) {
+    if let allowRedirects = taskConfigs[task.taskIdentifier]?.redirects {
       if !allowRedirects {
         completionHandler(nil)
         return
@@ -1095,7 +1091,7 @@ extension HTTP: URLSessionTaskDelegate, URLSessionDataDelegate {
     didSendBodyData bytesSent: Int64, totalBytesSent: Int64,
     totalBytesExpectedToSend: Int64)
   {
-    if let handler = lockQueue.sync(execute: { taskConfigs[task.taskIdentifier]?.progressHandler }) {
+    if let handler = taskConfigs[task.taskIdentifier]?.progressHandler {
       handler(
         HTTPProgress(
           type: .upload,
@@ -1110,7 +1106,7 @@ extension HTTP: URLSessionTaskDelegate, URLSessionDataDelegate {
   public func urlSession(_ session: URLSession, dataTask: URLSessionDataTask,
     didReceive data: Data)
   {
-    if let handler = lockQueue.sync(execute: { taskConfigs[dataTask.taskIdentifier]?.progressHandler }) {
+    if let handler = taskConfigs[dataTask.taskIdentifier]?.progressHandler {
       handler(
         HTTPProgress(
           type: .download,
@@ -1123,16 +1119,14 @@ extension HTTP: URLSessionTaskDelegate, URLSessionDataDelegate {
 //    if taskConfigs[dataTask.taskIdentifier]?.data != nil {
 //      taskConfigs[dataTask.taskIdentifier]?.data.append(data)
 //    }
-    lockQueue.sync {
-      taskConfigs[dataTask.taskIdentifier]?.data.append(data)
-    }
+    taskConfigs[dataTask.taskIdentifier]?.data.append(data)
   }
 
   public func urlSession(_ session: URLSession, task: URLSessionTask,
     didCompleteWithError error: Error?)
   {
-    if let config = lockQueue.sync(execute: { taskConfigs[task.taskIdentifier] }),
-      let handler = config.completionHandler
+    if let config = taskConfigs[task.taskIdentifier],
+       let handler = config.completionHandler
     {
       let result = HTTPResult(
         data: config.data,
@@ -1144,9 +1138,7 @@ extension HTTP: URLSessionTaskDelegate, URLSessionDataDelegate {
       result.encoding = self.defaults.encoding
       handler(result)
     }
-    _ = lockQueue.sync(flags: [.barrier]) {
-      taskConfigs.removeValue(forKey: task.taskIdentifier)
-    }
+    taskConfigs.removeValue(forKey: task.taskIdentifier)
   }
 }
 
