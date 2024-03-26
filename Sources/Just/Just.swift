@@ -1,4 +1,7 @@
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 
 #if os(Linux)
 import Dispatch
@@ -84,7 +87,7 @@ let statusCodeDescriptions = [
 public enum HTTPFile {
   case url(URL, String?) // URL to a file, mimetype
   case data(String, Foundation.Data, String?) // filename, data, mimetype
-  case text(String, String, String?) // filename, text, mimetype
+  case text(String?, String, String?) // filename, text, mimetype
 }
 
 // Supported request types
@@ -234,7 +237,7 @@ public final class HTTPResult : NSObject {
         let urlRange = start..<end
         var link: [String: String] = ["url": String(url[urlRange])]
         linkComponents.dropFirst().forEach { s in
-          if let equalIndex = s.index(of: "=") {
+          if let equalIndex = s.firstIndex(of: "=") {
             let componentKey = String(s[s.startIndex..<equalIndex])
             let range = s.index(equalIndex, offsetBy: 1)..<s.endIndex
             let value = s[range]
@@ -725,7 +728,7 @@ extension JustOf {
 
 public final class HTTP: NSObject, URLSessionDelegate, JustAdaptor {
 
-  public init(session: Foundation.URLSession? = nil,
+  public init(session: URLSession? = nil,
     defaults: JustSessionDefaults? = nil)
   {
     super.init()
@@ -743,7 +746,8 @@ public final class HTTP: NSObject, URLSessionDelegate, JustAdaptor {
     }
   }
 
-  var taskConfigs: [TaskID: TaskConfiguration]=[:]
+  var lockQueue = DispatchQueue(label: "com.just.asyncoperation", attributes: .concurrent)
+  var taskConfigs: [TaskID: TaskConfiguration]=[:] // need sync!
   var defaults: JustSessionDefaults!
   var session: URLSession!
   var invalidURLError = NSError(
@@ -769,7 +773,8 @@ public final class HTTP: NSObject, URLSessionDelegate, JustAdaptor {
       }
     } else if let array = value as? [Any] {
       for value in array {
-        components += queryComponents("\(key)", value)
+        //components += queryComponents("\(key)", value)
+        components += queryComponents("\(key)[]", value) //VK: fix move.ru api
       }
     } else {
       components.append((
@@ -806,7 +811,9 @@ public final class HTTP: NSObject, URLSessionDelegate, JustAdaptor {
     -> URLSessionDataTask?
   {
     let task = session.dataTask(with: request)
-    taskConfigs[task.taskIdentifier] = configuration
+    lockQueue.sync(flags: [.barrier]) {
+      taskConfigs[task.taskIdentifier] = configuration // crash without lock
+    }
     return task
   }
 
@@ -847,8 +854,13 @@ public final class HTTP: NSObject, URLSessionDelegate, JustAdaptor {
         partContent = data
         partMimetype = mimetype
       }
-      if let content = partContent, let filename = partFilename {
-        let dispose = "Content-Disposition: form-data; name=\"\(k)\"; filename=\"\(filename)\"\r\n"
+      if let content = partContent {
+        let dispose: String
+        if let filename = partFilename {
+          dispose = "Content-Disposition: form-data; name=\"\(k)\"; filename=\"\(filename)\"\r\n"
+        } else {
+          dispose = "Content-Disposition: form-data; name=\"\(k)\"\r\n"
+        }
         body.append(dispose.data(using: defaults.encoding)!)
         if let type = partMimetype {
           body.append(
@@ -1005,8 +1017,8 @@ public final class HTTP: NSObject, URLSessionDelegate, JustAdaptor {
 
     let task = makeTask(request, configuration: config)
     requestResult.task = task
-    if task != nil {
-      task?.resume()
+    if let task {
+      task.resume()
     }
 
     if isSynchronous {
@@ -1043,7 +1055,7 @@ extension HTTP: URLSessionTaskDelegate, URLSessionDataDelegate {
     {
     var endCredential: URLCredential? = nil
 
-    if let taskConfig = taskConfigs[task.taskIdentifier],
+    if let taskConfig = lockQueue.sync(execute: { taskConfigs[task.taskIdentifier] }),
       let credential = taskConfig.credential
     {
       if !(challenge.previousFailureCount > 0) {
@@ -1063,7 +1075,7 @@ extension HTTP: URLSessionTaskDelegate, URLSessionDataDelegate {
     newRequest request: URLRequest,
     completionHandler: @escaping (URLRequest?) -> Void)
   {
-    if let allowRedirects = taskConfigs[task.taskIdentifier]?.redirects {
+    if let allowRedirects = lockQueue.sync(execute: { taskConfigs[task.taskIdentifier]?.redirects }) {
       if !allowRedirects {
         completionHandler(nil)
         return
@@ -1078,7 +1090,7 @@ extension HTTP: URLSessionTaskDelegate, URLSessionDataDelegate {
     didSendBodyData bytesSent: Int64, totalBytesSent: Int64,
     totalBytesExpectedToSend: Int64)
   {
-    if let handler = taskConfigs[task.taskIdentifier]?.progressHandler {
+    if let handler = lockQueue.sync(execute: { taskConfigs[task.taskIdentifier]?.progressHandler }) {
       handler(
         HTTPProgress(
           type: .upload,
@@ -1093,7 +1105,7 @@ extension HTTP: URLSessionTaskDelegate, URLSessionDataDelegate {
   public func urlSession(_ session: URLSession, dataTask: URLSessionDataTask,
     didReceive data: Data)
   {
-    if let handler = taskConfigs[dataTask.taskIdentifier]?.progressHandler {
+    if let handler = lockQueue.sync(execute: { taskConfigs[dataTask.taskIdentifier]?.progressHandler }) {
       handler(
         HTTPProgress(
           type: .download,
@@ -1103,7 +1115,10 @@ extension HTTP: URLSessionTaskDelegate, URLSessionDataDelegate {
         )
       )
     }
-    if taskConfigs[dataTask.taskIdentifier]?.data != nil {
+//    if taskConfigs[dataTask.taskIdentifier]?.data != nil {
+//      taskConfigs[dataTask.taskIdentifier]?.data.append(data)
+//    }
+    lockQueue.sync {
       taskConfigs[dataTask.taskIdentifier]?.data.append(data)
     }
   }
@@ -1111,7 +1126,7 @@ extension HTTP: URLSessionTaskDelegate, URLSessionDataDelegate {
   public func urlSession(_ session: URLSession, task: URLSessionTask,
     didCompleteWithError error: Error?)
   {
-    if let config = taskConfigs[task.taskIdentifier],
+    if let config = lockQueue.sync(execute: { taskConfigs[task.taskIdentifier] }),
       let handler = config.completionHandler
     {
       let result = HTTPResult(
@@ -1124,7 +1139,9 @@ extension HTTP: URLSessionTaskDelegate, URLSessionDataDelegate {
       result.encoding = self.defaults.encoding
       handler(result)
     }
-    taskConfigs.removeValue(forKey: task.taskIdentifier)
+    _ = lockQueue.sync(flags: [.barrier]) {
+      taskConfigs.removeValue(forKey: task.taskIdentifier)
+    }
   }
 }
 
