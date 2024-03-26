@@ -1,7 +1,7 @@
 Pod::Spec.new do |s|
 
   s.name         = "Just"
-  s.version      = "0.8.0"
+  s.version      = "0.9.0"
   s.summary      = "Swift HTTP for Humans"
 
   s.description  = <<-DESC
@@ -29,7 +29,7 @@ Pod::Spec.new do |s|
   s.author             = { "Daniel Duan" => "daniel@duan.ca" }
   s.social_media_url   = "https://twitter.com/daniel_duan"
 
-  s.ios.deployment_target = "8.0"
+  s.ios.deployment_target = "9.0"
   s.osx.deployment_target = "10.10"
   s.tvos.deployment_target = "10.0"
   s.watchos.deployment_target = "3.0"
