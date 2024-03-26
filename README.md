@@ -62,6 +62,12 @@ Just.post(
 
 ```
 
+Use Swift Concurrency
+
+```swift
+let r = try await Just.get("http://httpbin.org/get", params: ["a": 1])
+```
+
 Read *Getting Started* [on the web][starting link] or
 [in this playground][starting playground] to learn more!
 
