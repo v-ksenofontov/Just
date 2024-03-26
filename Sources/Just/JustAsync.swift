@@ -9,6 +9,24 @@
 import Foundation
 
 @available(iOS 13.0, *)
+actor HTTPResultWrapper {
+    var httpResult: HTTPResult?
+    private(set) var isCancelled = false
+    
+    func setHttpResult(_ httpResult: HTTPResult?) {
+        self.httpResult = httpResult
+        if isCancelled {
+            httpResult?.cancel()
+        }
+    }
+    
+    func cancel() {
+        isCancelled = true
+        httpResult?.cancel()
+    }
+}
+
+@available(iOS 13.0, *)
 public extension JustAdaptor {
     func request(
         _ method: HTTPMethod,
@@ -26,76 +44,38 @@ public extension JustAdaptor {
         requestBody: Data?,
         asyncProgressHandler: TaskProgressHandler?
     ) async throws -> HTTPResult {
-
-        try await withCheckedThrowingContinuation { continuation in
-            _ = request(
-                method,
-                url: url,
-                params: params,
-                data: data,
-                json: json,
-                headers: headers,
-                files: files,
-                auth: auth,
-                cookies: cookies,
-                redirects: allowRedirects,
-                timeout: timeout,
-                urlQuery: urlQuery,
-                requestBody: requestBody,
-                asyncProgressHandler: asyncProgressHandler,
-                asyncCompletionHandler: {
-                    continuation.resume(returning: $0)
+        let httpResultWrapper = HTTPResultWrapper()
+        return try await withTaskCancellationHandler {
+            try await withCheckedThrowingContinuation { continuation in
+                let httpResult = request(
+                    method,
+                    url: url,
+                    params: params,
+                    data: data,
+                    json: json,
+                    headers: headers,
+                    files: files,
+                    auth: auth,
+                    cookies: cookies,
+                    redirects: allowRedirects,
+                    timeout: timeout,
+                    urlQuery: urlQuery,
+                    requestBody: requestBody,
+                    asyncProgressHandler: asyncProgressHandler,
+                    asyncCompletionHandler: {
+                        continuation.resume(returning: $0)
+                    }
+                )
+                Task {
+                    await httpResultWrapper.setHttpResult(httpResult)
                 }
-            )
+            }
+        } onCancel: {
+            Task {
+                await httpResultWrapper.cancel()
+            }
         }
     }
-   
-//TODO:
-//    func request(
-//        _ method: HTTPMethod,
-//        url: URLComponentsConvertible,
-//        params: [String: Any],
-//        data: [String: Any],
-//        json: Any?,
-//        headers: [String: String],
-//        files: [String: HTTPFile],
-//        auth: Credentials?,
-//        cookies: [String: String],
-//        redirects allowRedirects: Bool,
-//        timeout: Double?,
-//        urlQuery: String?,
-//        requestBody: Data?,
-//        asyncProgressHandler: TaskProgressHandler?
-//    ) async throws -> Task<HTTPResult, Error> {
-//        var httpResult: HTTPResult?
-//        return await withTaskCancellationHandler {
-//            httpResult?.cancel()
-//        } operation: {
-//            Task.detached {
-//            try await withCheckedThrowingContinuation { continuation in
-//                httpResult = request(
-//                    method,
-//                    url: url,
-//                    params: params,
-//                    data: data,
-//                    json: json,
-//                    headers: headers,
-//                    files: files,
-//                    auth: auth,
-//                    cookies: cookies,
-//                    redirects: allowRedirects,
-//                    timeout: timeout,
-//                    urlQuery: urlQuery,
-//                    requestBody: requestBody,
-//                    asyncProgressHandler: asyncProgressHandler,
-//                    asyncCompletionHandler: {
-//                        continuation.resume(returning: $0)
-//                    }
-//                )
-//            }
-//            }
-//        }
-        
 }
 
 @available(iOS 13.0, *)

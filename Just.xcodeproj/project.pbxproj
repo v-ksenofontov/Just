@@ -65,9 +65,9 @@
 			isa = PBXGroup;
 			children = (
 				E3E267361D13686F001BDA58 /* CaseInsensitiveDictionaryTests.swift */,
-				E3E2673A1D14A2BA001BDA58 /* JustTests.swift */,
 				94EDF39B1AEEE38B007BF486 /* elon.jpg */,
 				52C116F0272E0A44003E76A5 /* JustAsyncTests.swift */,
+				E3E2673A1D14A2BA001BDA58 /* JustTests.swift */,
 			);
 			path = JustTests;
 			sourceTree = "<group>";

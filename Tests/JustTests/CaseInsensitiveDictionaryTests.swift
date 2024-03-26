@@ -45,7 +45,7 @@ final class CaseInsensitiveDictionaryTests: XCTestCase {
     }
 
     func testMutatingCopyDoesNotMutateTheOriginal() {
-        var d0: CaseInsensitiveDictionary = ["a": 1]
+        let d0: CaseInsensitiveDictionary = ["a": 1]
         var d1 = d0
         d1["a"] = 2
         XCTAssertEqual(d0["a"], 1)
@@ -54,20 +54,20 @@ final class CaseInsensitiveDictionaryTests: XCTestCase {
 
     func testMutatingOriginalDoesNotMutateTheCopy() {
         var d0: CaseInsensitiveDictionary = ["a": 1]
-        var d1 = d0
+        let d1 = d0
         d0["a"] = 2
         XCTAssertEqual(d0["a"], 2)
         XCTAssertEqual(d1["a"], 1)
     }
 
     func testValueCasesAreKept() {
-        var d: CaseInsensitiveDictionary = ["a": "aAaA", "b": "bbBb"]
+        let d: CaseInsensitiveDictionary = ["a": "aAaA", "b": "bbBb"]
         XCTAssertEqual(d["a"], "aAaA")
         XCTAssertEqual(d["b"], "bbBb")
     }
 
     func testCaseInsensitivityForKeys() {
-        var d: CaseInsensitiveDictionary = ["aAaA": "a"]
+        let d: CaseInsensitiveDictionary = ["aAaA": "a"]
         XCTAssertEqual(d["aAaA"], "a")
         XCTAssertEqual(d["aaaa"], "a")
         XCTAssertEqual(d["AAAA"], "a")
