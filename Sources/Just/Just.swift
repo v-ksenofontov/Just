@@ -415,6 +415,24 @@ public protocol JustAdaptor {
     asyncProgressHandler: TaskProgressHandler?,
     asyncCompletionHandler: ((HTTPResult) -> Void)?
     ) -> HTTPResult
+    
+    @available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
+    func request(
+        _ method: HTTPMethod,
+        url: URLComponentsConvertible,
+        params: [String: Any],
+        data: [String: Any],
+        json: Any?,
+        headers: [String: String],
+        files: [String: HTTPFile],
+        auth: Credentials?,
+        cookies: [String: String],
+        redirects allowRedirects: Bool,
+        timeout: Double?,
+        urlQuery: String?,
+        requestBody: Data?,
+        asyncProgressHandler: TaskProgressHandler?
+    ) async throws -> HTTPResult
 
   init(session: URLSession?, defaults: JustSessionDefaults?)
 }
